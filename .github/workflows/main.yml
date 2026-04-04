@@ -1,0 +1,27 @@
+name: Review Uitnodigingen
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  verstuur:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Python installeren
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Packages installeren
+        run: pip install requests
+
+      - name: Script uitvoeren
+        env:
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python review_uitnodiging_v2.py
