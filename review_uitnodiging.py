@@ -330,12 +330,7 @@ def maak_html_mail(voornaam, order_id, email="", is_herinnering=False):
               Trustpilot
             </a>
           </td>
-          <td style="padding:5px">
-            <a href="{WORKER_URL}/klik?email={email_encoded}&platform=kiyoh&order={order_id}"
-               style="display:inline-block;background:#D4580A;color:#ffffff;font-family:Arial,sans-serif;font-weight:700;font-size:14px;padding:12px 22px;border-radius:5px;text-decoration:none">
-              Kiyoh
-            </a>
-          </td>
+ 
         </tr>
       </table>
     </td>
