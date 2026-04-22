@@ -259,7 +259,8 @@ def heeft_al_geklikt(email):
 # ══════════════════════════════════════════════════════════════
  
 def maak_html_mail(voornaam, order_id, email="", is_herinnering=False):
-    afmeld_url = f"{AFMELD_URL}?token={requests.utils.quote(f'{order_id}:{AFZENDER_MAIL}'")}"
+    afmeld_token = requests.utils.quote(f"{order_id}:{AFZENDER_MAIL}")
+    afmeld_url   = f"{AFMELD_URL}?token={afmeld_token}"
     email_encoded = requests.utils.quote(email)
  
     intro = (
