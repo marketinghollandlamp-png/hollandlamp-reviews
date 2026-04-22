@@ -24,4 +24,4 @@ jobs:
       - name: Script uitvoeren
         env:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        run: python review_uitnodiging_v2.py
+        run: python review_uitnodiging_v3.py
