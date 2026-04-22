@@ -20,7 +20,6 @@ Modus via omgevingsvariabele MODUS:
  
 import os
 import sys
-import sqlite3
 import smtplib
 import requests
 import json
@@ -54,7 +53,6 @@ AFMELD_URL     = f"{WORKER_URL}/afmelden"
 DELAY_DAGEN       = int(os.getenv("DELAY_DAGEN",    "7"))   # Dagen na bestelling
 MIN_BEDRAG        = float(os.getenv("MIN_BEDRAG",  "50"))   # Minimum orderbedrag
 MAX_ORDERS        = int(os.getenv("MAX_ORDERS",   "100"))   # Max orders per run
-DB_PATH           = "review_log.db"
 MODUS             = os.getenv("MODUS", "normaal")           # normaal/droogloop/test
  
 # ── Klantgroep filter ─────────────────────────────────────────
@@ -103,102 +101,104 @@ log = Logger()
 # DATABASE
 # ══════════════════════════════════════════════════════════════
  
+# Database cache (wordt eenmalig geladen aan het begin van de run)
+_db_cache = None
+_afmeld_cache = None
+ 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
- 
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS uitnodigingen (
-            order_id        TEXT PRIMARY KEY,
-            email           TEXT NOT NULL,
-            voornaam        TEXT,
-            bedrag          REAL,
-            verstuurd_op    TEXT,
-            herinnering_op  TEXT,
-            status          TEXT DEFAULT 'uitgenodigd',
-            modus           TEXT DEFAULT 'normaal'
+    """Laad database uit Cloudflare KV Worker."""
+    global _db_cache, _afmeld_cache
+    try:
+        resp = requests.get(
+            f"{WORKER_URL}/db/uitnodigingen",
+            headers={"X-Worker-Secret": WORKER_SECRET},
+            timeout=15
         )
-    """)
+        _db_cache = resp.json().get("uitnodigingen", {}) if resp.ok else {}
+    except Exception as e:
+        log.log(f"DB laden mislukt: {e} — lege database gebruikt", "warn")
+        _db_cache = {}
  
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS afmeldingen (
-            email       TEXT PRIMARY KEY,
-            afgemeld_op TEXT NOT NULL,
-            order_id    TEXT
+    try:
+        resp = requests.get(
+            f"{WORKER_URL}/db/afmeldingen",
+            headers={"X-Worker-Secret": WORKER_SECRET},
+            timeout=15
         )
-    """)
+        _afmeld_cache = resp.json().get("afmeldingen", {}) if resp.ok else {}
+    except Exception:
+        _afmeld_cache = {}
  
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS runs (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            gestart_op  TEXT NOT NULL,
-            modus       TEXT,
-            nieuw       INTEGER DEFAULT 0,
-            herinnering INTEGER DEFAULT 0,
-            overgeslagen INTEGER DEFAULT 0,
-            fouten      INTEGER DEFAULT 0,
-            duur_sec    REAL
-        )
-    """)
- 
-    conn.commit()
-    conn.close()
+    log.log(f"Database geladen: {len(_db_cache)} uitnodigingen, {len(_afmeld_cache)} afmeldingen")
  
  
 def is_uitgenodigd(order_id):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT status, verstuurd_op FROM uitnodigingen WHERE order_id = ?", (order_id,))
-    row = c.fetchone()
-    conn.close()
-    return row
+    if _db_cache is None:
+        return None
+    record = _db_cache.get(str(order_id))
+    if not record:
+        return None
+    return (record.get("status"), record.get("verstuurd_op"))
  
  
 def is_afgemeld(email):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT 1 FROM afmeldingen WHERE email = ?", (email.lower(),))
-    row = c.fetchone()
-    conn.close()
-    return row is not None
+    if _afmeld_cache is None:
+        return False
+    return email.lower() in _afmeld_cache
  
  
 def sla_op(order_id, email, voornaam, bedrag, status="uitgenodigd"):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    nu = datetime.now().isoformat()
- 
-    if status == "uitgenodigd":
-        c.execute("""
-            INSERT OR IGNORE INTO uitnodigingen
-            (order_id, email, voornaam, bedrag, verstuurd_op, status, modus)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (order_id, email.lower(), voornaam, bedrag, nu, status, MODUS))
-    elif status == "herinnerd":
-        c.execute("""
-            UPDATE uitnodigingen
-            SET herinnering_op = ?, status = 'herinnerd'
-            WHERE order_id = ?
-        """, (nu, order_id))
- 
-    conn.commit()
-    conn.close()
+    """Sla uitnodiging op in Cloudflare KV via Worker."""
+    try:
+        resp = requests.post(
+            f"{WORKER_URL}/db/uitnodigingen",
+            headers={
+                "Content-Type": "application/json",
+                "X-Worker-Secret": WORKER_SECRET,
+            },
+            json={
+                "order_id": str(order_id),
+                "email":    email.lower(),
+                "voornaam": voornaam,
+                "bedrag":   bedrag,
+                "status":   status,
+            },
+            timeout=15
+        )
+        if resp.ok:
+            # Update lokale cache
+            if _db_cache is not None:
+                nu = datetime.now().isoformat()
+                if status == "uitgenodigd":
+                    _db_cache[str(order_id)] = {
+                        "order_id": str(order_id), "email": email.lower(),
+                        "voornaam": voornaam, "bedrag": bedrag,
+                        "verstuurd_op": nu, "status": "uitgenodigd"
+                    }
+                elif status == "herinnerd" and str(order_id) in _db_cache:
+                    _db_cache[str(order_id)]["status"] = "herinnerd"
+                    _db_cache[str(order_id)]["herinnering_op"] = nu
+    except Exception as e:
+        log.log(f"DB opslaan mislukt voor order {order_id}: {e}", "warn")
  
  
 def sla_run_op(gestart, duur):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO runs (gestart_op, modus, nieuw, herinnering, overgeslagen, fouten, duur_sec)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        gestart.isoformat(), MODUS,
-        log.tellers["nieuw"], log.tellers["herinnering"],
-        log.tellers["overgeslagen"], log.tellers["fout"],
-        round(duur, 2)
-    ))
-    conn.commit()
-    conn.close()
+    """Run statistieken opslaan in KV."""
+    try:
+        requests.post(
+            f"{WORKER_URL}/db/uitnodigingen",
+            headers={"Content-Type": "application/json", "X-Worker-Secret": WORKER_SECRET},
+            json={
+                "order_id": f"__run_{gestart.strftime('%Y%m%d_%H%M%S')}",
+                "email": "__run__",
+                "status": "run",
+                "voornaam": f"Run {gestart.strftime('%d-%m-%Y %H:%M')}",
+                "bedrag": 0,
+            },
+            timeout=10
+        )
+    except Exception:
+        pass
  
  
 # ══════════════════════════════════════════════════════════════
@@ -547,3 +547,17 @@ def main():
 if __name__ == "__main__":
     main()
  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
