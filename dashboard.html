@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review Dashboard — HollandLamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:    #1B2B3A;
+  --orange:  #D4580A;
+  --orange2: #F06020;
+  --green:   #00B67A;
+  --yellow:  #FBBC04;
+  --bg:      #F2F4F6;
+  --card:    #FFFFFF;
+  --border:  #E4E8EC;
+  --text:    #1A1A1A;
+  --muted:   #6B7280;
+  --light:   #F8F9FA;
+  --red:     #E53E3E;
+  --shadow:  0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  --radius:  10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── LOGIN ───────────────────────────────────────────────── */
+#login-overlay {
+  position: fixed; inset: 0; background: var(--navy);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+}
+#login-overlay.hidden { display: none; }
+.login-card {
+  background: #fff; border-radius: 14px; padding: 44px 40px;
+  width: 360px; text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+}
+.login-card img { height: 34px; margin-bottom: 28px; }
+.login-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.login-card p  { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+.login-field {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-size: 14px; font-family: inherit;
+  margin-bottom: 10px; outline: none; transition: border-color .15s;
+}
+.login-field:focus { border-color: var(--orange); }
+.login-btn {
+  width: 100%; padding: 12px; background: var(--orange); color: #fff;
+  border: none; border-radius: 7px; font-size: 14px; font-weight: 700;
+  font-family: inherit; cursor: pointer; margin-top: 4px;
+  transition: background .15s;
+}
+.login-btn:hover { background: var(--orange2); }
+.login-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+/* ── TOPBAR ──────────────────────────────────────────────── */
+.topbar {
+  background: var(--navy); padding: 0 28px;
+  display: flex; align-items: center; gap: 20px; height: 56px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.topbar img { height: 28px; }
+.topbar-title { color: #fff; font-size: 13px; font-weight: 600; opacity: .7; }
+.topbar-spacer { flex: 1; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4ADE80; box-shadow: 0 0 0 3px rgba(74,222,128,.25);
+}
+.status-dot.red { background: var(--red); box-shadow: 0 0 0 3px rgba(229,62,62,.25); }
+.status-dot.orange { background: var(--orange); box-shadow: 0 0 0 3px rgba(212,88,10,.25); }
+.topbar-status { color: #fff; font-size: 12px; opacity: .8; display: flex; align-items: center; gap: 8px; }
+.logout-btn {
+  background: rgba(255,255,255,.12); color: #fff; border: none;
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.logout-btn:hover { background: rgba(255,255,255,.22); }
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+
+/* ── PAUSE BANNER ────────────────────────────────────────── */
+.pause-banner {
+  background: #FEF3C7; border: 1.5px solid #F59E0B;
+  border-radius: 8px; padding: 12px 18px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; font-weight: 600; color: #92400E;
+}
+.pause-banner.hidden { display: none; }
+
+/* ── TABS ────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 2px; background: #fff; border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 3px; margin-bottom: 24px;
+  width: fit-content; flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; color: var(--muted); border: none; background: none;
+  font-family: inherit; transition: all .12s; white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--navy); color: #fff; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── CARDS ───────────────────────────────────────────────── */
+.card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 22px 24px; margin-bottom: 16px;
+}
+.card-title {
+  font-size: 13px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 16px;
+}
+
+/* ── KPI GRID ────────────────────────────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+@media(max-width:800px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+.kpi {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 20px 20px 18px;
+  box-shadow: var(--shadow);
+}
+.kpi-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.kpi-value { font-size: 32px; font-weight: 700; line-height: 1; }
+.kpi-sub   { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.kpi-value.green  { color: var(--green); }
+.kpi-value.orange { color: var(--orange); }
+
+/* ── GRID 2-COL ──────────────────────────────────────────── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media(max-width:700px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ── ROW ─────────────────────────────────────────────────── */
+.row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: none; padding-bottom: 0; }
+.row-label { font-size: 13px; font-weight: 600; }
+.row-sub   { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.row-val   { font-size: 13px; font-weight: 600; }
+
+/* ── BADGES ──────────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+}
+.badge.green  { background: #DCFCE7; color: #166534; }
+.badge.orange { background: #FEE2CC; color: #9A3412; }
+.badge.gray   { background: #F1F5F9; color: #64748B; }
+.badge.red    { background: #FEE2E2; color: #991B1B; }
+
+/* ── TOGGLE ──────────────────────────────────────────────── */
+.toggle { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: #CBD5E1; border-radius: 24px;
+  cursor: pointer; transition: background .2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; width: 18px; height: 18px;
+  left: 3px; top: 3px; background: #fff; border-radius: 50%;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle input:checked + .toggle-slider { background: var(--orange); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+/* ── NUMBER INPUT ────────────────────────────────────────── */
+.num-input { display: flex; align-items: center; gap: 4px; }
+.num-btn {
+  width: 28px; height: 28px; border: 1.5px solid var(--border);
+  border-radius: 6px; background: var(--light); font-size: 16px;
+  cursor: pointer; font-family: inherit; display: flex; align-items: center;
+  justify-content: center; font-weight: 700; color: var(--text);
+  transition: background .12s;
+}
+.num-btn:hover { background: var(--border); }
+.num-val {
+  width: 56px; text-align: center; border: 1.5px solid var(--border);
+  border-radius: 6px; padding: 5px 4px; font-size: 14px; font-weight: 600;
+  font-family: inherit; outline: none;
+}
+.num-val:focus { border-color: var(--orange); }
+
+/* ── NEXT RUN CARD ───────────────────────────────────────── */
+.next-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:600px) { .next-grid { grid-template-columns: 1fr; } }
+.next-kpi { text-align: center; padding: 16px 12px; }
+.next-kpi-val { font-size: 28px; font-weight: 700; }
+.next-kpi-lbl { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+
+/* ── TABLE ───────────────────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 2px solid var(--border); background: var(--light);
+}
+.tbl td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: #FAFBFC; }
+.mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+
+/* ── BLACKLIST ───────────────────────────────────────────── */
+.bl-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.bl-input {
+  flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-size: 14px; font-family: inherit; outline: none;
+}
+.bl-input:focus { border-color: var(--orange); }
+.btn {
+  padding: 10px 18px; border-radius: 7px; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; border: none; transition: background .15s;
+}
+.btn-orange { background: var(--orange); color: #fff; }
+.btn-orange:hover { background: var(--orange2); }
+.btn-ghost {
+  background: var(--light); color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-ghost:hover { background: var(--border); }
+.btn-danger { background: #FEE2E2; color: var(--red); border: 1.5px solid #FCA5A5; }
+.btn-danger:hover { background: #FCA5A5; }
+.bl-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--light); border: 1.5px solid var(--border);
+  border-radius: 7px; margin-bottom: 6px;
+}
+.bl-email { font-family: 'DM Mono', monospace; font-size: 13px; }
+.bl-remove {
+  background: none; border: none; color: var(--red); cursor: pointer;
+  font-size: 16px; padding: 0 4px; line-height: 1;
+}
+
+/* ── FLOW TIMELINE ───────────────────────────────────────── */
+.timeline { position: relative; padding-left: 36px; }
+.timeline::before {
+  content: ''; position: absolute; left: 14px; top: 24px;
+  bottom: 24px; width: 2px; background: var(--border);
+}
+.tl-item { position: relative; margin-bottom: 24px; }
+.tl-dot {
+  position: absolute; left: -28px; top: 3px; width: 16px; height: 16px;
+  border-radius: 50%; border: 2.5px solid var(--border); background: #fff;
+}
+.tl-dot.orange { border-color: var(--orange); background: var(--orange); }
+.tl-dot.green  { border-color: var(--green);  background: var(--green); }
+.tl-dot.gray   { border-color: #94A3B8; background: #94A3B8; }
+.tl-day { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.tl-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.tl-desc  { font-size: 13px; color: var(--muted); }
+
+/* ── TOAST ───────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 11px 18px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff;
+  background: #1A1A1A; opacity: 0; transform: translateY(8px);
+  transition: all .22s; pointer-events: none; z-index: 9999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok { background: var(--green); }
+.toast.err { background: var(--red); }
+
+/* ── LOADING ─────────────────────────────────────────────── */
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border); border-top-color: var(--orange);
+  border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 20px 0; }
+
+/* ── INFO BOX ────────────────────────────────────────────── */
+.info-box {
+  background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 8px;
+  padding: 14px 16px; font-size: 13px; color: #1E40AF; margin-bottom: 16px;
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────────── -->
+<div id="login-overlay">
+  <div class="login-card">
+    <img src="https://www.hollandlamp.nl/media/logo/stores/1/page-logo.jpg" alt="HollandLamp">
+    <h2>Review Dashboard</h2>
+    <p>Log in om het review systeem te beheren</p>
+    <input class="login-field" type="password" id="inp-pw" placeholder="Wachtwoord"
+           onkeydown="if(event.key==='Enter')tryLogin()">
+    <button class="login-btn" onclick="tryLogin()">Inloggen</button>
+    <div class="login-error" id="login-err">Onjuiste gegevens. Probeer opnieuw.</div>
+  </div>
+</div>
+
+<!-- ── TOPBAR ─────────────────────────────────────────────── -->
+<div class="topbar">
+  <img src="https://www.hollandlamp.nl/media/logo/stores/1/page-logo.jpg" alt="HollandLamp">
+  <span class="topbar-title">Review Dashboard</span>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-status">
+    <div class="status-dot" id="sys-dot"></div>
+    <span id="sys-label">Laden...</span>
+  </div>
+  <button class="logout-btn" onclick="logout()">Uitloggen</button>
+</div>
+
+<!-- ── MAIN ──────────────────────────────────────────────── -->
+<div class="container">
+
+  <!-- Pauze banner -->
+  <div class="pause-banner hidden" id="pause-banner">
+    ⏸ &nbsp;<span>Systeem staat op pauze — uitnodigingen worden niet verstuurd.</span>
+    <button class="btn btn-ghost" style="margin-left:auto;font-size:12px;padding:6px 12px"
+            onclick="saveSetting('pauze',false);showToast('Pauze opgeheven','ok')">
+      Hervatten
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('overzicht',this)">Overzicht</button>
+    <button class="tab-btn"        onclick="showTab('flow',this)">E-mail flow</button>
+    <button class="tab-btn"        onclick="showTab('instellingen',this)">Instellingen</button>
+    <button class="tab-btn"        onclick="showTab('activiteit',this)">Activiteit</button>
+    <button class="tab-btn"        onclick="showTab('database',this)">Database</button>
+    <button class="tab-btn"        onclick="showTab('statistieken',this)">Statistieken</button>
+    <button class="tab-btn"        onclick="showTab('blacklist',this)">Blacklist</button>
+  </div>
+
+  <!-- ── TAB: OVERZICHT ──────────────────────────────────── -->
+  <div class="tab-panel active" id="tab-overzicht">
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Totaal verstuurd</div><div class="kpi-value" id="kpi-totaal">—</div><div class="kpi-sub">Ooit</div></div>
+      <div class="kpi"><div class="kpi-label">Deze maand</div><div class="kpi-value green" id="kpi-maand">—</div><div class="kpi-sub" id="kpi-maand-lbl"></div></div>
+      <div class="kpi"><div class="kpi-label">Afmeldingen</div><div class="kpi-value orange" id="kpi-afmeld">—</div><div class="kpi-sub">Nooit meer een mail</div></div>
+      <div class="kpi"><div class="kpi-label">Blacklist</div><div class="kpi-value" id="kpi-bl">—</div><div class="kpi-sub">Handmatig uitgesloten</div></div>
+    </div>
+
+    <div class="grid2">
+      <!-- Instellingen samenvatting -->
+      <div class="card">
+        <div class="card-title">Huidige instellingen</div>
+        <div class="row">
+          <div><div class="row-label">Systeem</div><div class="row-sub">Automatisch versturen</div></div>
+          <span class="badge" id="ov-systeem">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Vertraging</div><div class="row-sub">Dagen na order complete</div></div>
+          <span class="row-val" id="ov-delay">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Min. bedrag</div><div class="row-sub">Particulier / Wholesale</div></div>
+          <span class="row-val" id="ov-bedrag">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Max/dag</div><div class="row-sub">Dagelijks maximum</div></div>
+          <span class="row-val" id="ov-maxdag">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Google Reviews</div></div>
+          <span class="badge" id="ov-google">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Trustpilot</div></div>
+          <span class="badge" id="ov-trustpilot">—</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Kiyoh</div><div class="row-sub">Extern, buiten dit systeem</div></div>
+          <span class="badge gray">Automatisch via Kiyoh</span>
+        </div>
+      </div>
+
+      <!-- Volgende run -->
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Volgende run</span>
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="laadVolgendeRun()">↻ Vernieuwen</button>
+        </div>
+        <div id="next-run-content">
+          <div class="loading-row"><div class="spinner"></div>Ophalen...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: E-MAIL FLOW ──────────────────────────────────── -->
+  <div class="tab-panel" id="tab-flow">
+    <div class="card">
+      <div class="card-title">Hoe werkt het systeem?</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot orange"></div>
+          <div class="tl-day">Dag 0</div>
+          <div class="tl-title">Klant plaatst bestelling</div>
+          <div class="tl-desc">Order krijgt status <em>complete</em> in Magento zodra het is verwerkt of verzonden.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot gray"></div>
+          <div class="tl-day">Dag 1–6</div>
+          <div class="tl-title">Wachttijd</div>
+          <div class="tl-desc">Script wacht <span id="fl-delay">7</span> dagen — zodat de klant het product heeft ontvangen en kan beoordelen.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot green"></div>
+          <div class="tl-day">Dag 7 · 09:00</div>
+          <div class="tl-title">Uitnodiging verstuurd</div>
+          <div class="tl-desc">GitHub Actions draait automatisch. Script checkt: bedrag ≥ €<span id="fl-bedrag">50</span>, niet afgemeld, nog niet uitgenodigd, nog niet geklikt. Dan gaat de mail.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot orange"></div>
+          <div class="tl-day">Na de mail</div>
+          <div class="tl-title">Klant klikt op knop</div>
+          <div class="tl-desc">Klik wordt geregistreerd. Klant wordt doorgestuurd naar Google of Trustpilot. Die klant ontvangt <strong>nooit</strong> meer een uitnodiging.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot gray"></div>
+          <div class="tl-day">Altijd</div>
+          <div class="tl-title">Afmelden is mogelijk</div>
+          <div class="tl-desc">Elke mail bevat een afmeldlink. Wie afmeldt wordt voor altijd uitgesloten — ook bij toekomstige bestellingen.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Wanneer wordt een mail NIET gestuurd?</div>
+      <div class="row"><div class="row-label">✗ Bedrag te laag</div><div class="row-sub">Minder dan €<span id="fl-bedrag2">50</span> (particulier) of €200 (wholesale)</div></div>
+      <div class="row"><div class="row-label">✗ Al uitgenodigd</div><div class="row-sub">Order staat al in de database</div></div>
+      <div class="row"><div class="row-label">✗ Al geklikt</div><div class="row-sub">Klant heeft eerder op een review-knop geklikt</div></div>
+      <div class="row"><div class="row-label">✗ Afgemeld</div><div class="row-sub">Klant heeft zich afgemeld via de link in een eerdere mail</div></div>
+      <div class="row"><div class="row-label">✗ Blacklist</div><div class="row-sub">E-mailadres staat handmatig op de blacklist</div></div>
+      <div class="row"><div class="row-label">✗ Dagelijks maximum</div><div class="row-sub">Meer dan <span id="fl-maxdag">30</span> mails al verstuurd vandaag</div></div>
+      <div class="row"><div class="row-label">✗ Systeem uit / pauze</div><div class="row-sub">Via de instellingen uitgeschakeld</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Mail preview</div>
+      <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden">
+        <iframe id="mail-preview" srcdoc="" style="width:100%;height:480px;border:none"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: INSTELLINGEN ──────────────────────────────────── -->
+  <div class="tab-panel" id="tab-instellingen">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Systeem</div>
+        <div class="row">
+          <div><div class="row-label">Automatisch versturen</div><div class="row-sub">Schakel het hele systeem aan of uit</div></div>
+          <label class="toggle"><input type="checkbox" id="tog-systeem" onchange="saveSetting('systeem',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Pauze modus</div><div class="row-sub">Tijdelijk stoppen zonder uit te zetten</div></div>
+          <label class="toggle"><input type="checkbox" id="tog-pauze" onchange="saveSetting('pauze',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Platforms</div>
+        <div class="row">
+          <div><div class="row-label">Google Reviews</div><div class="row-sub">Link naar Google review pagina</div></div>
+          <label class="toggle"><input type="checkbox" id="tog-google" onchange="saveSetting('google',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Trustpilot</div><div class="row-sub">Link naar Trustpilot review pagina</div></div>
+          <label class="toggle"><input type="checkbox" id="tog-trustpilot" onchange="saveSetting('trustpilot',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Kiyoh</div><div class="row-sub">Gaat automatisch via Kiyoh zelf</div></div>
+          <span class="badge gray">Buiten dit systeem</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Timing &amp; bedragen</div>
+        <div class="row">
+          <div><div class="row-label">Vertraging na bestelling</div><div class="row-sub">Wachttijd voor eerste mail</div></div>
+          <div class="num-input">
+            <button class="num-btn" onclick="numChange('delay',-1)">−</button>
+            <input class="num-val" type="number" id="inp-delay" value="7" min="1" max="30" onchange="saveSetting('delay',+this.value)">
+            <button class="num-btn" onclick="numChange('delay',1)">+</button>
+            <span style="font-size:12px;color:var(--muted);margin-left:4px">dagen</span>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Min. bedrag (particulier)</div><div class="row-sub">Alleen orders boven dit bedrag</div></div>
+          <div class="num-input">
+            <button class="num-btn" onclick="numChange('bedrag',-10)">−</button>
+            <input class="num-val" type="number" id="inp-bedrag" value="50" min="0" max="1000" onchange="saveSetting('bedrag',+this.value)" style="width:64px">
+            <button class="num-btn" onclick="numChange('bedrag',10)">+</button>
+            <span style="font-size:12px;color:var(--muted);margin-left:4px">euro</span>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Max mails per dag</div><div class="row-sub">Voorkomt bulk bij eerste run (0 = onbeperkt)</div></div>
+          <div class="num-input">
+            <button class="num-btn" onclick="numChange('maxdag',-5)">−</button>
+            <input class="num-val" type="number" id="inp-maxdag" value="30" min="0" max="500" onchange="saveSetting('maxdag',+this.value)" style="width:64px">
+            <button class="num-btn" onclick="numChange('maxdag',5)">+</button>
+            <span style="font-size:12px;color:var(--muted);margin-left:4px">mails</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Overig</div>
+        <div class="row">
+          <div><div class="row-label">Database</div><div class="row-sub">Cloudflare KV — persistent</div></div>
+          <span class="badge green">✓ Actief</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Automatisch draaien</div><div class="row-sub">GitHub Actions, elke dag 09:00</div></div>
+          <span class="badge green">✓ Actief</span>
+        </div>
+        <div class="row">
+          <div><div class="row-label">Klikregistratie</div><div class="row-sub">Klant klikt → nooit meer een mail</div></div>
+          <span class="badge green">✓ Actief</span>
+        </div>
+        <div style="margin-top:18px">
+          <button class="btn btn-danger" style="width:100%" onclick="resetInstellingen()">
+            Instellingen resetten naar standaard
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: ACTIVITEIT ────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-activiteit">
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Verstuurde uitnodigingen</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="laadActiviteit()">↻ Vernieuwen</button>
+      </div>
+      <div id="act-content">
+        <div class="loading-row"><div class="spinner"></div>Laden...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: DATABASE ──────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-database">
+    <div class="info-box">
+      ℹ️ &nbsp;Dit is de live database uit Cloudflare KV. Alle uitnodigingen, afmeldingen en klikregistraties staan hier. De data is actueel zodra je op Vernieuwen klikt.
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Uitnodigingen</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="laadDatabase()">↻ Vernieuwen</button>
+      </div>
+      <div id="db-content">
+        <div class="loading-row"><div class="spinner"></div>Laden...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Afmeldingen &amp; blacklist</div>
+      <div id="afmeld-content">
+        <div class="loading-row"><div class="spinner"></div>Laden...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: STATISTIEKEN ──────────────────────────────────── -->
+  <div class="tab-panel" id="tab-statistieken">
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Totaal verstuurd</div><div class="kpi-value green" id="st-totaal">—</div><div class="kpi-sub">Ooit</div></div>
+      <div class="kpi"><div class="kpi-label">Deze maand</div><div class="kpi-value" id="st-maand">—</div><div class="kpi-sub" id="st-maand-lbl">—</div></div>
+      <div class="kpi"><div class="kpi-label">Afmeldingen</div><div class="kpi-value orange" id="st-afmeld">—</div><div class="kpi-sub">Totaal</div></div>
+      <div class="kpi"><div class="kpi-label">Afmeldrate</div><div class="kpi-value" id="st-rate">—</div><div class="kpi-sub">% van verstuurd</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Uitnodigingen per maand</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="laadStatistieken()">↻ Vernieuwen</button>
+      </div>
+      <div id="stat-chart" style="padding:8px 0"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Reden overgeslagen (niet beschikbaar zonder live run)</div>
+      <p style="color:var(--muted);font-size:13px">
+        Gedetailleerde skip-redenen worden gelogd in GitHub Actions → tab Actions → laatste run → verstuur → run_summary.md.
+        Bekijk die logs na elke dagelijkse run voor een overzicht per reden.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── TAB: BLACKLIST ─────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-blacklist">
+    <div class="card">
+      <div class="card-title">E-mailadres toevoegen aan blacklist</div>
+      <div class="info-box">
+        Klanten op de blacklist ontvangen nooit een uitnodiging — ook niet bij toekomstige bestellingen.
+        Het adres wordt opgeslagen in Cloudflare KV en elke ochtend gecheckt door het script.
+      </div>
+      <div class="bl-input-row">
+        <input class="bl-input" type="email" id="bl-input" placeholder="klant@bedrijf.nl"
+               onkeydown="if(event.key==='Enter')voegBlToe()">
+        <button class="btn btn-orange" onclick="voegBlToe()">Toevoegen</button>
+      </div>
+      <div id="bl-lijst"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONSTANTEN & STATE
+// ══════════════════════════════════════════════════════════════
+
+const DEFAULTS = {
+  systeem: true, pauze: false, google: true, trustpilot: true,
+  delay: 7, bedrag: 50, maxdag: 30
+};
+
+let WS = ''; // Worker Secret, ingevuld bij login
+
+// ══════════════════════════════════════════════════════════════
+// LOGIN & AUTH
+// ══════════════════════════════════════════════════════════════
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Hash van wachtwoord "Highvolume8797!"
+const PW_HASH = '09ebf8486ce416ce7416d93d1c00f7c96153031cb0d647a9a0ebc10bc3d3bfab';
+
+async function tryLogin() {
+  const pw = document.getElementById('inp-pw').value;
+  if (!pw) { showLoginError('Vul het wachtwoord in.'); return; }
+
+  const hash = await sha256(pw);
+  if (hash !== PW_HASH) { showLoginError('Onjuist wachtwoord.'); return; }
+
+  WS = WORKER_SECRET_HARDCODED;
+  sessionStorage.setItem('hl_ws', WS);
+  sessionStorage.setItem('hl_auth', '1');
+
+  document.getElementById('login-overlay').classList.add('hidden');
+  init();
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function logout() {
+  sessionStorage.clear();
+  location.reload();
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem('hl_auth') === '1') {
+    WS = WORKER_SECRET_HARDCODED;
+    document.getElementById('login-overlay').classList.add('hidden');
+    return true;
+  }
+  return false;
+}
+
+// ══════════════════════════════════════════════════════════════
+// INSTELLINGEN
+// ══════════════════════════════════════════════════════════════
+
+function getS() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('hl_settings') || '{}') }; }
+  catch { return { ...DEFAULTS }; }
+}
+
+function saveSetting(key, val) {
+  const s = getS(); s[key] = val;
+  localStorage.setItem('hl_settings', JSON.stringify(s));
+  updateUI();
+  showToast('Opgeslagen', 'ok');
+}
+
+function resetInstellingen() {
+  localStorage.setItem('hl_settings', JSON.stringify(DEFAULTS));
+  loadSettings();
+  updateUI();
+  showToast('Instellingen gereset', 'ok');
+}
+
+function loadSettings() {
+  const s = getS();
+  document.getElementById('tog-systeem').checked    = s.systeem;
+  document.getElementById('tog-pauze').checked       = s.pauze;
+  document.getElementById('tog-google').checked      = s.google;
+  document.getElementById('tog-trustpilot').checked  = s.trustpilot;
+  document.getElementById('inp-delay').value         = s.delay;
+  document.getElementById('inp-bedrag').value        = s.bedrag;
+  document.getElementById('inp-maxdag').value        = s.maxdag;
+}
+
+function numChange(key, delta) {
+  const ids = { delay: 'inp-delay', bedrag: 'inp-bedrag', maxdag: 'inp-maxdag' };
+  const el = document.getElementById(ids[key]);
+  const min = +el.min || 0, max = +el.max || 9999;
+  el.value = Math.min(max, Math.max(min, (+el.value || 0) + delta));
+  saveSetting(key, +el.value);
+}
+
+function updateUI() {
+  const s = getS();
+
+  // Topbar
+  const running = s.systeem && !s.pauze;
+  const dot = document.getElementById('sys-dot');
+  dot.className = 'status-dot' + (s.pauze ? ' orange' : s.systeem ? '' : ' red');
+  document.getElementById('sys-label').textContent =
+    s.pauze ? 'Op pauze' : s.systeem ? 'Actief' : 'Uitgeschakeld';
+
+  // Pauze banner
+  document.getElementById('pause-banner').classList.toggle('hidden', !s.pauze);
+
+  // Overzicht
+  const ob = (id, cls, txt) => { const e = document.getElementById(id); if(e){e.className='badge '+cls;e.textContent=txt;} };
+  ob('ov-systeem',    s.systeem ? 'green' : 'red',  s.systeem ? '✓ Aan' : '✗ Uit');
+  ob('ov-google',     s.google ? 'green' : 'gray',  s.google ? '✓ Aan' : '— Uit');
+  ob('ov-trustpilot', s.trustpilot ? 'green' : 'gray', s.trustpilot ? '✓ Aan' : '— Uit');
+  const ov_delay = document.getElementById('ov-delay');
+  if(ov_delay) ov_delay.textContent = s.delay + ' dagen';
+  const ov_bedrag = document.getElementById('ov-bedrag');
+  if(ov_bedrag) ov_bedrag.textContent = `€${s.bedrag},— / €200,— (wholesale)`;
+  const ov_maxdag = document.getElementById('ov-maxdag');
+  if(ov_maxdag) ov_maxdag.textContent = s.maxdag > 0 ? s.maxdag + ' mails' : 'Onbeperkt';
+
+  // Flow tab
+  ['fl-delay','fl-bedrag','fl-bedrag2'].forEach(id => {
+    const e = document.getElementById(id);
+    if(e) e.textContent = id.includes('bedrag') ? s.bedrag : s.delay;
+  });
+  const fm = document.getElementById('fl-maxdag');
+  if(fm) fm.textContent = s.maxdag > 0 ? s.maxdag : '∞';
+
+  // Mail preview
+  renderMailPreview(s);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════
+
+function showTab(naam, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + naam).classList.add('active');
+
+  if (naam === 'database')     laadDatabase();
+  if (naam === 'activiteit')   laadActiviteit();
+  if (naam === 'statistieken') laadStatistieken();
+  if (naam === 'blacklist')    renderBlacklist();
+}
+
+// ══════════════════════════════════════════════════════════════
+// WORKER API
+// ══════════════════════════════════════════════════════════════
+
+const WORKER = 'https://plain-shape-a0a7.marketinghollandlamp.workers.dev';
+const WORKER_SECRET_HARDCODED = 'HL-reviews-2026-XkQ9';
+
+async function workerGet(pad) {
+  const r = await fetch(WORKER + pad, { headers: { 'X-Worker-Secret': WS } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function workerPost(pad, data) {
+  const r = await fetch(WORKER + pad, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Worker-Secret': WS },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// VOLGENDE RUN
+// ══════════════════════════════════════════════════════════════
+
+async function laadVolgendeRun() {
+  const el = document.getElementById('next-run-content');
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div>Orders ophalen...</div>';
+
+  const s = getS();
+  const nu = new Date();
+  const grensTijd = new Date(nu.getTime() - s.delay * 86400000);
+  const grensOud  = new Date(nu.getTime() - 90 * 86400000);
+
+  const fmt = d => d.toISOString().slice(0,19).replace('T',' ');
+
+  try {
+    const data = await workerPost('/orders', {
+      grens_nieuw: fmt(grensTijd),
+      grens_oud:   fmt(grensOud)
+    });
+
+    const orders = data.orders || [];
+    let klaar = 0, laagte = 0, al = 0, rest = 0;
+
+    for (const o of orders) {
+      const bedrag = parseFloat(o.bedrag) || 0;
+      if (bedrag < s.bedrag) { laagte++; continue; }
+      klaar++;
+    }
+
+    // Limiet toepassen
+    if (s.maxdag > 0 && klaar > s.maxdag) {
+      rest  = klaar - s.maxdag;
+      klaar = s.maxdag;
+    }
+
+    el.innerHTML = `
+      <div class="next-grid">
+        <div class="next-kpi">
+          <div class="next-kpi-val" style="color:var(--green)">${klaar}</div>
+          <div class="next-kpi-lbl">Mails morgen</div>
+        </div>
+        <div class="next-kpi">
+          <div class="next-kpi-val" style="color:var(--muted)">${laagte}</div>
+          <div class="next-kpi-lbl">Bedrag te laag</div>
+        </div>
+        <div class="next-kpi">
+          <div class="next-kpi-val" style="color:var(--orange)">${rest}</div>
+          <div class="next-kpi-lbl">Wacht tot overmorgen</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center">
+        Volgende automatische run: morgen om 09:00 via GitHub Actions
+      </p>`;
+
+    // Update KPI
+    document.getElementById('kpi-totaal').textContent = '—';
+
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--red);font-size:13px">Fout bij ophalen: ${e.message}<br><small>Controleer de Worker verbinding en of Magento token is ingesteld.</small></p>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATABASE TAB
+// ══════════════════════════════════════════════════════════════
+
+async function laadDatabase() {
+  const dbEl  = document.getElementById('db-content');
+  const afEl  = document.getElementById('afmeld-content');
+  dbEl.innerHTML  = '<div class="loading-row"><div class="spinner"></div>Laden...</div>';
+  afEl.innerHTML  = '<div class="loading-row"><div class="spinner"></div>Laden...</div>';
+
+  try {
+    const data = await workerGet('/db/uitnodigingen');
+    const items = Object.values(data.uitnodigingen || {})
+      .filter(r => r.email !== '__run__')
+      .sort((a,b) => (b.verstuurd_op||'').localeCompare(a.verstuurd_op||''));
+
+    // Update KPIs
+    const nu = new Date();
+    const maand = nu.getFullYear() + '-' + String(nu.getMonth()+1).padStart(2,'0');
+    const dezeM = items.filter(r => (r.verstuurd_op||'').startsWith(maand)).length;
+
+    document.getElementById('kpi-totaal').textContent = items.length;
+    document.getElementById('kpi-maand').textContent  = dezeM;
+    document.getElementById('kpi-maand-lbl').textContent =
+      nu.toLocaleString('nl-NL',{month:'long'}) + ' ' + nu.getFullYear();
+    document.getElementById('st-totaal').textContent = items.length;
+    document.getElementById('st-maand').textContent  = dezeM;
+    document.getElementById('st-maand-lbl').textContent =
+      nu.toLocaleString('nl-NL',{month:'long'});
+
+    if (!items.length) {
+      dbEl.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:16px 0">Nog geen uitnodigingen verstuurd.</p>';
+    } else {
+      dbEl.innerHTML = `
+        <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th>Order</th><th>Naam</th><th>E-mail</th><th>Bedrag</th><th>Verstuurd op</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+          ${items.slice(0,100).map(r => `
+            <tr>
+              <td class="mono">#${r.order_id}</td>
+              <td>${escHtml(r.voornaam||'—')}</td>
+              <td class="mono">${escHtml(r.email)}</td>
+              <td>€${parseFloat(r.bedrag||0).toFixed(0)},-</td>
+              <td style="color:var(--muted)">${fmtDate(r.verstuurd_op)}</td>
+              <td><span class="badge ${r.status==='uitgenodigd'?'green':'gray'}">${r.status||'—'}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+        ${items.length > 100 ? `<p style="color:var(--muted);font-size:12px;margin-top:8px">Toont 100 van ${items.length} records.</p>` : ''}`;
+    }
+  } catch(e) {
+    dbEl.innerHTML = `<p style="color:var(--red);font-size:13px">Fout: ${e.message}</p>`;
+  }
+
+  try {
+    const data = await workerGet('/db/afmeldingen');
+    const afmeld = Object.values(data.afmeldingen || {})
+      .filter(r => !r.email?.startsWith('klik:'))
+      .sort((a,b) => (b.afgemeld_op||'').localeCompare(a.afgemeld_op||''));
+
+    document.getElementById('kpi-afmeld').textContent = afmeld.length;
+    document.getElementById('kpi-bl').textContent     =
+      (JSON.parse(localStorage.getItem('hl_bl') || '[]')).length;
+    document.getElementById('st-afmeld').textContent  = afmeld.length;
+
+    const totaal = parseInt(document.getElementById('st-totaal').textContent) || 0;
+    const rate = totaal > 0 ? ((afmeld.length / totaal) * 100).toFixed(1) + '%' : '—';
+    document.getElementById('st-rate').textContent = rate;
+
+    if (!afmeld.length) {
+      afEl.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:12px 0">Geen afmeldingen.</p>';
+    } else {
+      afEl.innerHTML = `
+        <table class="tbl">
+          <thead><tr><th>E-mail</th><th>Order</th><th>Afgemeld op</th></tr></thead>
+          <tbody>
+          ${afmeld.map(r => `
+            <tr>
+              <td class="mono">${escHtml(r.email)}</td>
+              <td class="mono">${r.order_id ? '#'+r.order_id : '—'}</td>
+              <td style="color:var(--muted)">${fmtDate(r.afgemeld_op)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+  } catch(e) {
+    afEl.innerHTML = `<p style="color:var(--red);font-size:13px">Fout: ${e.message}</p>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ACTIVITEIT TAB
+// ══════════════════════════════════════════════════════════════
+
+async function laadActiviteit() {
+  const el = document.getElementById('act-content');
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div>Laden...</div>';
+  try {
+    const data = await workerGet('/db/uitnodigingen');
+    const items = Object.values(data.uitnodigingen || {})
+      .filter(r => r.email !== '__run__')
+      .sort((a,b) => (b.verstuurd_op||'').localeCompare(a.verstuurd_op||''));
+
+    if (!items.length) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:16px 0">Nog geen activiteit.</p>';
+      return;
+    }
+    el.innerHTML = `
+      <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th>Order</th><th>Naam</th><th>E-mail</th><th>Bedrag</th><th>Verstuurd</th><th>Status</th></tr></thead>
+        <tbody>
+        ${items.slice(0,200).map(r => `
+          <tr>
+            <td class="mono">#${r.order_id}</td>
+            <td>${escHtml(r.voornaam||'—')}</td>
+            <td class="mono" style="font-size:12px">${escHtml(r.email)}</td>
+            <td>€${parseFloat(r.bedrag||0).toFixed(0)},-</td>
+            <td style="color:var(--muted);font-size:12px">${fmtDate(r.verstuurd_op)}</td>
+            <td><span class="badge ${r.status==='uitgenodigd'?'green':'gray'}">${r.status||'—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<p style="color:var(--red);font-size:13px">Fout: ${e.message}</p>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// STATISTIEKEN TAB
+// ══════════════════════════════════════════════════════════════
+
+async function laadStatistieken() {
+  try {
+    const data = await workerGet('/db/uitnodigingen');
+    const items = Object.values(data.uitnodigingen || {}).filter(r => r.email !== '__run__');
+
+    // Per maand tellen
+    const perMaand = {};
+    items.forEach(r => {
+      if (!r.verstuurd_op) return;
+      const m = r.verstuurd_op.slice(0,7); // YYYY-MM
+      perMaand[m] = (perMaand[m] || 0) + 1;
+    });
+
+    const maanden = Object.keys(perMaand).sort().slice(-6);
+    const max = Math.max(...maanden.map(m => perMaand[m]), 1);
+
+    const chart = document.getElementById('stat-chart');
+    chart.innerHTML = maanden.length ? `
+      <div style="display:flex;align-items:flex-end;gap:10px;height:120px;padding:0 4px">
+        ${maanden.map(m => {
+          const n = perMaand[m];
+          const pct = Math.round((n/max)*100);
+          const lbl = new Date(m+'-15').toLocaleString('nl-NL',{month:'short',year:'2-digit'});
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span style="font-size:11px;font-weight:700;color:var(--text)">${n}</span>
+            <div style="width:100%;background:var(--orange);border-radius:4px 4px 0 0;height:${pct}%;min-height:4px"></div>
+            <span style="font-size:10px;color:var(--muted)">${lbl}</span>
+          </div>`;
+        }).join('')}
+      </div>` : '<p style="color:var(--muted);font-size:13px">Nog geen data.</p>';
+
+  } catch(e) {
+    document.getElementById('stat-chart').innerHTML =
+      `<p style="color:var(--red);font-size:13px">Fout: ${e.message}</p>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BLACKLIST
+// ══════════════════════════════════════════════════════════════
+
+function getBlacklist() {
+  try { return JSON.parse(localStorage.getItem('hl_bl') || '[]'); } catch { return []; }
+}
+
+function saveBlacklist(list) {
+  localStorage.setItem('hl_bl', JSON.stringify(list));
+  document.getElementById('kpi-bl').textContent = list.length;
+}
+
+function renderBlacklist() {
+  const list = getBlacklist();
+  const el   = document.getElementById('bl-lijst');
+  if (!list.length) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px">Blacklist is leeg.</p>';
+    return;
+  }
+  el.innerHTML = list.map((email, i) => `
+    <div class="bl-item">
+      <span class="bl-email">${escHtml(email)}</span>
+      <button class="bl-remove" onclick="verwijderBl(${i})" title="Verwijderen">✕</button>
+    </div>`).join('');
+}
+
+async function voegBlToe() {
+  const inp   = document.getElementById('bl-input');
+  const email = inp.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { showToast('Ongeldig e-mailadres', 'err'); return; }
+
+  const list = getBlacklist();
+  if (list.includes(email)) { showToast('Staat al op de blacklist', 'err'); return; }
+
+  list.push(email);
+  saveBlacklist(list);
+  inp.value = '';
+  renderBlacklist();
+
+  // Stuur naar Cloudflare KV (als afmelding)
+  try {
+    await workerPost('/db/uitnodigingen', {
+      order_id: `__bl_${Date.now()}`, email, voornaam: 'Blacklist',
+      bedrag: 0, status: 'blacklist'
+    });
+    showToast('Toegevoegd aan blacklist', 'ok');
+  } catch {
+    showToast('Lokaal opgeslagen — Worker niet bereikbaar', 'ok');
+  }
+}
+
+function verwijderBl(i) {
+  const list = getBlacklist();
+  list.splice(i, 1);
+  saveBlacklist(list);
+  renderBlacklist();
+  showToast('Verwijderd van blacklist', 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIL PREVIEW
+// ══════════════════════════════════════════════════════════════
+
+function renderMailPreview(s) {
+  const iframe = document.getElementById('mail-preview');
+  if (!iframe) return;
+  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:20px;background:#F4F4F4;font-family:Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0"
+  style="max-width:560px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.1)">
+<tr><td style="background:#D4580A;height:4px;font-size:0">&nbsp;</td></tr>
+<tr><td style="background:#fff;padding:16px 28px;border-bottom:1px solid #E8E8E8">
+  <img src="https://www.hollandlamp.nl/media/logo/stores/1/page-logo.jpg" alt="HollandLamp" height="32" style="display:block">
+</td></tr>
+<tr><td style="padding:28px 28px 8px;font-size:15px;line-height:1.75;color:#1A1A1A">
+  <p style="margin:0 0 14px">Beste Jan,</p>
+  <p style="margin:0 0 14px">Bedankt voor uw bestelling bij HollandLamp <span style="color:#999;font-size:13px">(#10234)</span>.
+  We hopen dat alles goed is aangekomen.</p>
+  <p style="margin:0 0 24px">Zou u een korte review willen achterlaten? Uw eerlijke mening helpt andere klanten en helpt ons om beter te worden.</p>
+</td></tr>
+<tr><td style="padding:0 28px 32px;text-align:center">
+  ${s.google ? `<a href="#" style="display:inline-block;background:#FBBC04;color:#1A1A1A;font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:5px;margin:0 5px">Google Reviews</a>` : ''}
+  ${s.trustpilot ? `<a href="#" style="display:inline-block;background:#00B67A;color:#fff;font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:5px;margin:0 5px">Trustpilot</a>` : ''}
+</td></tr>
+<tr><td style="padding:16px 28px 20px;border-top:1px solid #E8E8E8;font-size:14px;line-height:1.7;color:#333">
+  <p style="margin:0">Met vriendelijke groet,<br><strong>Team HollandLamp</strong><br>
+  <span style="color:#888;font-size:13px">072 – 26 000 00 | <a href="#" style="color:#D4580A;text-decoration:none">info@hollandlamp.nl</a></span></p>
+</td></tr>
+<tr><td style="background:#F9F9F9;padding:12px 28px;border-top:1px solid #E8E8E8">
+  <p style="margin:0;font-size:11px;color:#AAA">U ontvangt dit bericht omdat u een aankoop heeft gedaan bij HollandLamp.nl.
+  &nbsp;<a href="#" style="color:#AAA">Afmelden voor review-uitnodigingen</a></p>
+</td></tr>
+</table></td></tr></table>
+</body></html>`;
+  iframe.srcdoc = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('nl-NL', {
+      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+  } catch { return iso.slice(0,16).replace('T',' '); }
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+
+async function init() {
+  loadSettings();
+  updateUI();
+  laadVolgendeRun();
+}
+
+// Auto-login als sessie actief
+if (checkAuth()) init();
+
+// Auto-logout na 30 min inactiviteit
+let inactTimer;
+function resetTimer() { clearTimeout(inactTimer); inactTimer = setTimeout(logout, 30*60*1000); }
+['click','keydown','mousemove'].forEach(e => document.addEventListener(e, resetTimer));
+resetTimer();
+</script>
+</body>
+</html>
